@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'https://ipmv-finance.hf.space/api', // FastAPI default address
+    baseURL: 'http://localhost:8000/api', // FastAPI default address
     headers: {
         'Content-Type': 'application/json'
     }
@@ -45,5 +45,11 @@ export const getMonthlyReport = (months = 6) => api.get(`/dashboard/reports/mont
 
 // AI Insights
 export const getAIInsights = () => api.get('/ai/insights');
+
+// Budgets
+export const getBudgets = () => api.get('/budgets/');
+export const createBudget = (data) => api.post('/budgets/', data);
+export const updateBudget = (id, data) => api.put(`/budgets/${id}`, data);
+export const deleteBudget = (id) => api.delete(`/budgets/${id}`);
 
 export default api;

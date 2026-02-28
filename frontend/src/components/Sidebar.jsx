@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Wallet, ArrowRightLeft, UserSquare2, LineChart } from 'lucide-react';
+import { LayoutDashboard, Wallet, ArrowRightLeft, UserSquare2, LineChart, Target } from 'lucide-react';
 
 const Sidebar = () => {
     const navItems = [
         { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={20} /> },
         { name: 'Accounts', path: '/accounts', icon: <Wallet size={20} /> },
         { name: 'Transactions', path: '/transactions', icon: <ArrowRightLeft size={20} /> },
+        { name: 'Budgets', path: '/budgets', icon: <Target size={20} /> },
         { name: 'Debts', path: '/debts', icon: <UserSquare2 size={20} /> },
         { name: 'Reports', path: '/reports', icon: <LineChart size={20} /> },
     ];

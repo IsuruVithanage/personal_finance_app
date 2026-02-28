@@ -1,22 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { getDashboardSummary, getMonthlyReport } from '../api/client';
+import { getDashboardSummary, getMonthlyReport, getBudgets } from '../api/client';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Wallet, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, DollarSign, Target } from 'lucide-react';
 import AIInsights from '../components/AIInsights';
+import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
     const [summary, setSummary] = useState(null);
     const [chartData, setChartData] = useState([]);
+    const [budgets, setBudgets] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [sumRes, reportRes] = await Promise.all([
+                const [sumRes, reportRes, budgetsRes] = await Promise.all([
                     getDashboardSummary(),
-                    getMonthlyReport(6)
+                    getMonthlyReport(6),
+                    getBudgets()
                 ]);
                 setSummary(sumRes.data);
+                setBudgets(budgetsRes.data.slice(0, 3)); // show top 3
 
                 // Reformat chart data to ensure clear numbers for Recharts
                 const formattedChartData = reportRes.data.map(d => ({
@@ -148,6 +152,51 @@ const Dashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {/* --- Active Budgets --- */}
+            {budgets.length > 0 && (
+                <div style={{ marginTop: 'var(--spacing-xl)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)' }}>
+                        <h3 style={{ fontSize: '1.125rem', margin: 0 }}>Active Budgets</h3>
+                        <Link to="/budgets" style={{ color: 'var(--brand-primary)', textDecoration: 'none', fontSize: '0.875rem', fontWeight: '500' }}>View All &rarr;</Link>
+                    </div>
+                    <div className="grid-3">
+                        {budgets.map(budget => {
+                            const spent = budget.spent || 0;
+                            const limit = budget.amount;
+                            const percentage = (spent / limit) * 100;
+
+                            let progressColor = 'var(--status-success)';
+                            if (percentage >= 100) {
+                                progressColor = 'var(--status-danger)';
+                            } else if (percentage >= 80) {
+                                progressColor = 'var(--status-warning)';
+                            }
+
+                            return (
+                                <div key={budget._id} className="glass-panel" style={{ padding: 'var(--spacing-md)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                        <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '500' }}>{budget.name}</h4>
+                                        <Target size={16} style={{ color: 'var(--text-tertiary)' }} />
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
+                                        <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: progressColor }}>Rs {spent.toLocaleString()}</span>
+                                        <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>/ Rs {limit.toLocaleString()}</span>
+                                    </div>
+                                    <div style={{ width: '100%', height: '6px', background: 'var(--glass-border)', borderRadius: '3px', overflow: 'hidden' }}>
+                                        <div style={{
+                                            height: '100%',
+                                            background: progressColor,
+                                            width: `${Math.min(100, Math.max(0, percentage))}%`,
+                                            transition: 'width 0.4s ease'
+                                        }}></div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             {/* --- AI Insights --- */}
             <div style={{ marginTop: 'var(--spacing-xl)' }}>
