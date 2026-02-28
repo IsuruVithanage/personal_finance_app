@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'https://ipmv-finance.hf.space/api', // FastAPI default address
+    baseURL: 'http://localhost:8000/api', // FastAPI default address
     headers: {
         'Content-Type': 'application/json'
     }
@@ -28,6 +28,7 @@ export const getTransactions = (accountId = null) => {
     return api.get(url);
 };
 export const createTransaction = (data) => api.post('/transactions/', data);
+export const updateTransaction = (id, data) => api.put(`/transactions/${id}`, data);
 export const deleteTransaction = (id) => api.delete(`/transactions/${id}`);
 
 // Debts

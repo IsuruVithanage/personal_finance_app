@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getAccount, getTransactions } from '../api/client';
-import { ArrowLeft, Wallet, Building2, CreditCard, ArrowRight } from 'lucide-react';
+import { getAccount, getTransactions, updateTransaction, deleteTransaction, getCategories, getAccounts } from '../api/client';
+import { ArrowLeft, Wallet, Building2, CreditCard, ArrowRight, Trash2 } from 'lucide-react';
 
 const AccountDetails = () => {
     const { id } = useParams();
@@ -9,18 +9,31 @@ const AccountDetails = () => {
 
     const [account, setAccount] = useState(null);
     const [transactions, setTransactions] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [allAccounts, setAllAccounts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({ income: 0, expense: 0 });
+
+    const [showModal, setShowModal] = useState(false);
+    const [editingTxId, setEditingTxId] = useState(null);
+    const [newTx, setNewTx] = useState({
+        amount: '', type: 'expense', date: new Date().toISOString().split('T')[0],
+        description: '', account_id: '', category_id: '', to_account_id: ''
+    });
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [accRes, txRes] = await Promise.all([
+            const [accRes, txRes, catRes, allAccRes] = await Promise.all([
                 getAccount(id),
-                getTransactions(id)
+                getTransactions(id),
+                getCategories(),
+                getAccounts()
             ]);
             setAccount(accRes.data);
             setTransactions(txRes.data);
+            setCategories(catRes.data);
+            setAllAccounts(allAccRes.data);
 
             // Calculate specific stats for this account from transactions
             let totalIn = 0;
@@ -62,6 +75,58 @@ const AccountDetails = () => {
 
     const formatCurrency = (amount) => {
         return `Rs ${Number(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
+
+    const handleCreate = async (e) => {
+        e.preventDefault();
+        try {
+            const payload = {
+                ...newTx,
+                amount: parseFloat(newTx.amount),
+                date: new Date(newTx.date).toISOString()
+            };
+
+            if (payload.type !== 'transfer') delete payload.to_account_id;
+            if (payload.type === 'transfer') delete payload.category_id;
+            if (!payload.category_id) delete payload.category_id;
+
+            if (editingTxId) {
+                await updateTransaction(editingTxId, payload);
+            }
+
+            setShowModal(false);
+            setEditingTxId(null);
+            fetchData(); // Refresh account details and transactions
+        } catch (error) {
+            console.error("Failed to save transaction", error);
+            alert(error.response?.data?.detail || "Failed to save transaction");
+        }
+    };
+
+    const openEditModal = (tx) => {
+        setEditingTxId(tx._id);
+        const dateStr = new Date(tx.date).toISOString().split('T')[0];
+        setNewTx({
+            amount: tx.amount,
+            type: tx.type,
+            date: dateStr,
+            description: tx.description,
+            account_id: tx.account_id,
+            category_id: tx.category_id || '',
+            to_account_id: tx.to_account_id || ''
+        });
+        setShowModal(true);
+    };
+
+    const handleDelete = async (txId) => {
+        if (window.confirm("Delete this transaction? This will revert the account balances by the transaction amount.")) {
+            try {
+                await deleteTransaction(txId);
+                fetchData();
+            } catch (error) {
+                console.error("Failed to delete transaction", error);
+            }
+        }
     };
 
     if (loading) return <div>Loading...</div>;
@@ -116,6 +181,7 @@ const AccountDetails = () => {
                                     <th>Description</th>
                                     <th>Type</th>
                                     <th style={{ textAlign: 'right' }}>Amount</th>
+                                    <th style={{ width: '80px', textAlign: 'right' }}></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -157,6 +223,14 @@ const AccountDetails = () => {
                                             <td style={{ textAlign: 'right', fontWeight: '500', ...displayStyle }}>
                                                 {amountPrefix}Rs {tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                             </td>
+                                            <td style={{ textAlign: 'right' }}>
+                                                <button className="btn-icon" onClick={() => openEditModal(tx)} title="Edit" style={{ color: 'var(--text-tertiary)', marginRight: '8px' }}>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-edit"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                                </button>
+                                                <button className="btn-icon" onClick={() => handleDelete(tx._id)} title="Delete" style={{ color: 'var(--text-tertiary)' }}>
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </td>
                                         </tr>
                                     );
                                 })}
@@ -165,6 +239,83 @@ const AccountDetails = () => {
                     </div>
                 )}
             </div>
+
+            {/* --- Edit Transaction Modal --- */}
+            {showModal && (
+                <div className="modal-overlay" onClick={() => setShowModal(false)}>
+                    <div className="glass-panel modal-content" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2 className="modal-title">Edit Transaction</h2>
+                            <button className="btn-icon" onClick={() => setShowModal(false)}>&times;</button>
+                        </div>
+                        <form onSubmit={handleCreate}>
+                            <div style={{ display: 'flex', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-md)' }}>
+                                <button type="button" className={`btn ${newTx.type === 'expense' ? 'btn-danger' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setNewTx({ ...newTx, type: 'expense' })}>Expense</button>
+                                <button type="button" className={`btn ${newTx.type === 'income' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1, background: newTx.type === 'income' ? 'var(--status-success)' : '' }} onClick={() => setNewTx({ ...newTx, type: 'income' })}>Income</button>
+                                <button type="button" className={`btn ${newTx.type === 'transfer' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1, background: newTx.type === 'transfer' ? 'var(--status-info)' : '' }} onClick={() => setNewTx({ ...newTx, type: 'transfer' })}>Transfer</button>
+                            </div>
+
+                            <div className="grid-2">
+                                <div className="form-group">
+                                    <label className="form-label">Amount (Rs)</label>
+                                    <input type="number" step="0.01" className="form-control" required
+                                        value={newTx.amount} onChange={e => setNewTx({ ...newTx, amount: e.target.value })} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Date</label>
+                                    <input type="date" className="form-control" required
+                                        value={newTx.date} onChange={e => setNewTx({ ...newTx, date: e.target.value })} />
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Description</label>
+                                <input type="text" className="form-control" required placeholder="What was this for?"
+                                    value={newTx.description} onChange={e => setNewTx({ ...newTx, description: e.target.value })} />
+                            </div>
+
+                            {newTx.type !== 'transfer' && (
+                                <div className="form-group">
+                                    <label className="form-label">Category</label>
+                                    <select className="form-control" value={newTx.category_id} onChange={e => setNewTx({ ...newTx, category_id: e.target.value })}>
+                                        <option value="">Select Category...</option>
+                                        {categories.filter(c => c.type === newTx.type).map(cat => (
+                                            <option key={cat._id} value={cat._id}>{cat.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            <div className="form-group">
+                                <label className="form-label">{newTx.type === 'transfer' ? 'From Account' : 'Account'}</label>
+                                <select className="form-control" required value={newTx.account_id} onChange={e => setNewTx({ ...newTx, account_id: e.target.value })}>
+                                    <option value="">Select Account...</option>
+                                    {allAccounts.map(acc => (
+                                        <option key={acc._id} value={acc._id}>{acc.name} (Rs {acc.balance})</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {newTx.type === 'transfer' && (
+                                <div className="form-group">
+                                    <label className="form-label">To Account</label>
+                                    <select className="form-control" required value={newTx.to_account_id} onChange={e => setNewTx({ ...newTx, to_account_id: e.target.value })}>
+                                        <option value="">Select Account...</option>
+                                        {allAccounts.map(acc => (
+                                            <option key={acc._id} value={acc._id}>{acc.name} (Rs {acc.balance})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            <div className="modal-actions">
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                                <button type="submit" className="btn btn-primary">Update Transaction</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

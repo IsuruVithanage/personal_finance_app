@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getTransactions, createTransaction, deleteTransaction, getAccounts, getCategories, splitBill } from '../api/client';
+import { getTransactions, createTransaction, updateTransaction, deleteTransaction, getAccounts, getCategories, splitBill } from '../api/client';
 import { Plus, Trash2, ArrowRight, SplitSquareHorizontal, UserMinus } from 'lucide-react';
 
 const Transactions = () => {
@@ -10,6 +10,7 @@ const Transactions = () => {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [showSplitModal, setShowSplitModal] = useState(false);
+    const [editingTxId, setEditingTxId] = useState(null);
 
     const [newTx, setNewTx] = useState({
         amount: '', type: 'expense', date: new Date().toISOString().split('T')[0],
@@ -64,14 +65,41 @@ const Transactions = () => {
             if (payload.type === 'transfer') delete payload.category_id;
             if (!payload.category_id) delete payload.category_id;
 
-            await createTransaction(payload);
+            if (editingTxId) {
+                await updateTransaction(editingTxId, payload);
+            } else {
+                await createTransaction(payload);
+            }
+
             setShowModal(false);
+            setEditingTxId(null);
             setNewTx({ amount: '', type: 'expense', date: new Date().toISOString().split('T')[0], description: '', account_id: accounts[0]?._id || '', category_id: '', to_account_id: '' });
             fetchData();
         } catch (error) {
-            console.error("Failed to create transaction", error);
-            alert(error.response?.data?.detail || "Failed to create transaction");
+            console.error("Failed to save transaction", error);
+            alert(error.response?.data?.detail || "Failed to save transaction");
         }
+    };
+
+    const openEditModal = (tx) => {
+        setEditingTxId(tx._id);
+        const dateStr = new Date(tx.date).toISOString().split('T')[0];
+        setNewTx({
+            amount: tx.amount,
+            type: tx.type,
+            date: dateStr,
+            description: tx.description,
+            account_id: tx.account_id,
+            category_id: tx.category_id || '',
+            to_account_id: tx.to_account_id || ''
+        });
+        setShowModal(true);
+    };
+
+    const openAddModal = () => {
+        setEditingTxId(null);
+        setNewTx({ amount: '', type: 'expense', date: new Date().toISOString().split('T')[0], description: '', account_id: accounts[0]?._id || '', category_id: '', to_account_id: '' });
+        setShowModal(true);
     };
 
     // --- Split Bill Handlers ---
@@ -146,7 +174,7 @@ const Transactions = () => {
                     <button className="btn btn-secondary" onClick={() => setShowSplitModal(true)}>
                         <SplitSquareHorizontal size={18} /> Split Expense
                     </button>
-                    <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+                    <button className="btn btn-primary" onClick={openAddModal}>
                         <Plus size={18} /> Add Transaction
                     </button>
                 </div>
@@ -162,7 +190,7 @@ const Transactions = () => {
                                 <th>Category</th>
                                 <th>Account</th>
                                 <th style={{ textAlign: 'right' }}>Amount</th>
-                                <th style={{ width: '50px' }}></th>
+                                <th style={{ width: '80px', textAlign: 'right' }}></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -189,7 +217,10 @@ const Transactions = () => {
                                         {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : ''}
                                         Rs {tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                     </td>
-                                    <td>
+                                    <td style={{ textAlign: 'right' }}>
+                                        <button className="btn-icon" onClick={() => openEditModal(tx)} title="Edit" style={{ color: 'var(--text-tertiary)', marginRight: '8px' }}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-edit"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                        </button>
                                         <button className="btn-icon" onClick={() => handleDelete(tx._id)} title="Delete" style={{ color: 'var(--text-tertiary)' }}>
                                             <Trash2 size={16} />
                                         </button>
@@ -209,7 +240,7 @@ const Transactions = () => {
                 <div className="modal-overlay" onClick={() => setShowModal(false)}>
                     <div className="glass-panel modal-content" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h2 className="modal-title">New Transaction</h2>
+                            <h2 className="modal-title">{editingTxId ? 'Edit Transaction' : 'New Transaction'}</h2>
                             <button className="btn-icon" onClick={() => setShowModal(false)}>&times;</button>
                         </div>
                         <form onSubmit={handleCreate}>
@@ -274,7 +305,7 @@ const Transactions = () => {
 
                             <div className="modal-actions">
                                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
-                                <button type="submit" className="btn btn-primary">Save Transaction</button>
+                                <button type="submit" className="btn btn-primary">{editingTxId ? 'Update Transaction' : 'Save Transaction'}</button>
                             </div>
                         </form>
                     </div>
