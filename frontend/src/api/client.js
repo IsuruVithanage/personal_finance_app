@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://localhost:8000/api', // FastAPI default address
+    baseURL: 'https://ipmv-finance.hf.space/api', // FastAPI default address
     headers: {
         'Content-Type': 'application/json'
     }
