@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getTransactions, createTransaction, updateTransaction, deleteTransaction, getAccounts, getCategories, splitBill } from '../api/client';
+import { getTransactions, createTransaction, updateTransaction, deleteTransaction, getAccounts, getCategories, createCategory, deleteCategory, splitBill } from '../api/client';
 import { Plus, Trash2, ArrowRight, SplitSquareHorizontal, UserMinus } from 'lucide-react';
 
 const Transactions = () => {
@@ -10,7 +10,9 @@ const Transactions = () => {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [showSplitModal, setShowSplitModal] = useState(false);
+    const [showCategoryModal, setShowCategoryModal] = useState(false);
     const [editingTxId, setEditingTxId] = useState(null);
+    const [newCategory, setNewCategory] = useState({ name: '', type: 'expense' });
 
     const [newTx, setNewTx] = useState({
         amount: '', type: 'expense', date: new Date().toISOString().split('T')[0],
@@ -147,6 +149,29 @@ const Transactions = () => {
         }
     }
 
+    const handleCreateCategory = async (e) => {
+        e.preventDefault();
+        try {
+            await createCategory(newCategory);
+            setNewCategory({ name: '', type: 'expense' });
+            fetchData();
+        } catch (error) {
+            console.error("Failed to create category", error);
+            alert(error.response?.data?.detail || "Failed to create category");
+        }
+    };
+
+    const handleDeleteCategory = async (id) => {
+        if (window.confirm("Delete this category? Transactions using this category won't show the category name anymore.")) {
+            try {
+                await deleteCategory(id);
+                fetchData();
+            } catch (error) {
+                console.error("Failed to delete category", error);
+            }
+        }
+    };
+
     const handleDelete = async (id) => {
         if (window.confirm("Delete this transaction? This will revert the account balances by the transaction amount.")) {
             try {
@@ -171,6 +196,9 @@ const Transactions = () => {
                     <p style={{ color: 'var(--text-secondary)' }}>Log and track your financial flow.</p>
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
+                    <button className="btn btn-secondary" onClick={() => setShowCategoryModal(true)}>
+                        Manage Categories
+                    </button>
                     <button className="btn btn-secondary" onClick={() => setShowSplitModal(true)}>
                         <SplitSquareHorizontal size={18} /> Split Expense
                     </button>
@@ -406,6 +434,65 @@ const Transactions = () => {
                                 <button type="submit" className="btn btn-primary" style={{ background: 'var(--brand-gradient)' }}>Split Bill & Save</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* --- Manage Categories Modal --- */}
+            {showCategoryModal && (
+                <div className="modal-overlay" onClick={() => setShowCategoryModal(false)}>
+                    <div className="glass-panel modal-content" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2 className="modal-title">Manage Categories</h2>
+                            <button className="btn-icon" onClick={() => setShowCategoryModal(false)}>&times;</button>
+                        </div>
+
+                        <form onSubmit={handleCreateCategory} style={{ marginBottom: 'var(--spacing-lg)' }}>
+                            <div className="grid-2" style={{ alignItems: 'end' }}>
+                                <div className="form-group">
+                                    <label className="form-label">Category Name</label>
+                                    <input type="text" className="form-control" required placeholder="e.g. Groceries"
+                                        value={newCategory.name} onChange={e => setNewCategory({ ...newCategory, name: e.target.value })} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Type</label>
+                                    <select className="form-control" value={newCategory.type} onChange={e => setNewCategory({ ...newCategory, type: e.target.value })}>
+                                        <option value="expense">Expense</option>
+                                        <option value="income">Income</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Add Category</button>
+                        </form>
+
+                        <div>
+                            <h3 style={{ fontSize: '1rem', marginBottom: 'var(--spacing-sm)' }}>Existing Categories</h3>
+                            <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                                {categories.length === 0 ? (
+                                    <div style={{ padding: 'var(--spacing-sm)', textAlign: 'center', color: 'var(--text-tertiary)' }}>No categories found</div>
+                                ) : (
+                                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                                        {categories.map(cat => (
+                                            <li key={cat._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-sm)', borderBottom: '1px solid var(--border-color)' }}>
+                                                <div>
+                                                    <span style={{ fontWeight: '500' }}>{cat.name}</span>
+                                                    <span className={`badge badge-${cat.type === 'income' ? 'success' : 'danger'}`} style={{ marginLeft: 'var(--spacing-sm)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem' }}>
+                                                        {cat.type}
+                                                    </span>
+                                                </div>
+                                                <button className="btn-icon" onClick={() => handleDeleteCategory(cat._id)} title="Delete Category" style={{ color: 'var(--status-danger)' }}>
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="modal-actions" style={{ marginTop: 'var(--spacing-md)' }}>
+                            <button type="button" className="btn btn-secondary" onClick={() => setShowCategoryModal(false)}>Close</button>
+                        </div>
                     </div>
                 </div>
             )}
