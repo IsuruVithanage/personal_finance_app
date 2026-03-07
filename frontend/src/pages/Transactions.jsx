@@ -16,7 +16,8 @@ const Transactions = () => {
     const initialTxState = {
         amount: '', type: 'expense', date: new Date().toISOString().split('T')[0],
         description: '', account_id: '', category_id: '', to_account_id: '',
-        is_split: false, splits: [{ account_id: '', amount: '' }]
+        is_split: false, splits: [{ account_id: '', amount: '' }],
+        bank_charge: 0
     };
     const [newTx, setNewTx] = useState(initialTxState);
 
@@ -74,12 +75,17 @@ const Transactions = () => {
 
             // Clean up payload based on type
             if (payload.type !== 'transfer') delete payload.to_account_id;
-            if (payload.type === 'transfer') delete payload.category_id;
+            if (payload.type === 'transfer') { delete payload.category_id; delete payload.is_split; delete payload.splits; }
             if (!payload.category_id) delete payload.category_id;
+            if (!payload.bank_charge) delete payload.bank_charge; // skip 0 charge
 
             if (payload.is_split) {
-                payload.splits = payload.splits.map(s => ({ account_id: s.account_id, amount: parseFloat(s.amount) || 0 }));
+                payload.splits = payload.splits
+                    .filter(s => s.account_id && s.amount)
+                    .map(s => ({ account_id: s.account_id, amount: parseFloat(s.amount) || 0 }));
+                if (payload.splits.length === 0) delete payload.splits;
             } else {
+                delete payload.is_split;
                 delete payload.splits;
             }
 
@@ -213,6 +219,11 @@ const Transactions = () => {
                                     }}>
                                         {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : ''}
                                         Rs {tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        {tx.bank_charge > 0 && (
+                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', fontWeight: 'normal' }}>
+                                                +Rs {tx.bank_charge.toLocaleString(undefined, { minimumFractionDigits: 2 })} fee
+                                            </div>
+                                        )}
                                     </td>
                                     <td style={{ textAlign: 'right' }}>
                                         <button className="btn-icon" onClick={() => openEditModal(tx)} title="Edit" style={{ color: 'var(--text-tertiary)', marginRight: '8px' }}>
@@ -304,6 +315,25 @@ const Transactions = () => {
                                             <option key={acc._id} value={acc._id}>{acc.name} (Rs {acc.balance})</option>
                                         ))}
                                     </select>
+                                </div>
+                            )}
+
+                            {/* Bank Charge - show when bank account is selected */}
+                            {accounts.find(a => a._id === newTx.account_id)?.type === 'bank' && (
+                                <div className="form-group">
+                                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        Bank Fee / Charge (Rs)
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 'normal' }}>Optional — deducted separately</span>
+                                    </label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        className="form-control"
+                                        placeholder="0.00"
+                                        value={newTx.bank_charge || ''}
+                                        onChange={e => setNewTx({ ...newTx, bank_charge: parseFloat(e.target.value) || 0 })}
+                                    />
                                 </div>
                             )}
 

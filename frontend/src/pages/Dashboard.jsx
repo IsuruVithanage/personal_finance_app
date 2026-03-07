@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getDashboardSummary, getMonthlyReport, getBudgets } from '../api/client';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Wallet, TrendingUp, TrendingDown, DollarSign, Target } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, DollarSign, Target, Scale } from 'lucide-react';
 import AIInsights from '../components/AIInsights';
 import { Link } from 'react-router-dom';
 
@@ -50,6 +50,28 @@ const Dashboard = () => {
             </div>
 
             {/* --- Stat Cards --- */}
+            {/* Net Worth - highlighted full picture */}
+            <div className="glass-panel" style={{ marginBottom: 'var(--spacing-md)', padding: 'var(--spacing-lg)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1))', border: '1px solid rgba(99,102,241,0.3)' }}>
+                <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                        <Scale size={22} style={{ color: 'var(--brand-primary)' }} />
+                        <h3 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-secondary)', fontWeight: '500', letterSpacing: '0.05em' }}>NET WORTH <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 'normal' }}>(accounts + friend balances)</span></h3>
+                    </div>
+                    <div style={{ fontSize: '2.25rem', fontWeight: '800', color: summary.net_worth >= 0 ? 'var(--text-primary)' : 'var(--status-danger)' }}>
+                        Rs {summary.net_worth?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </div>
+                    {summary.net_friend_balance !== 0 && (
+                        <div style={{ fontSize: '0.8rem', color: summary.net_friend_balance > 0 ? 'var(--status-success)' : 'var(--status-danger)', marginTop: '4px' }}>
+                            {summary.net_friend_balance > 0 ? '+' : ''}Rs {summary.net_friend_balance?.toLocaleString(undefined, { minimumFractionDigits: 2 })} from friends
+                        </div>
+                    )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', textAlign: 'right' }}>Liquid Cash</div>
+                    <div style={{ fontWeight: '700', fontSize: '1.25rem' }}>Rs {summary.total_balance?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                </div>
+            </div>
+
             <div className="grid-4" style={{ marginBottom: 'var(--spacing-xl)' }}>
                 <div className="glass-panel interactive stat-card">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -57,6 +79,7 @@ const Dashboard = () => {
                         <div className="btn-icon" style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--brand-primary)' }}><Wallet size={20} /></div>
                     </div>
                     <div className="stat-card-value">Rs {summary.total_balance?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '4px' }}>Your accounts only</div>
                 </div>
 
                 <div className="glass-panel interactive stat-card">
