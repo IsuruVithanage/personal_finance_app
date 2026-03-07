@@ -38,6 +38,7 @@ export const deleteTransaction = (id) => api.delete(`/transactions/${id}`);
 export const getDebts = () => api.get('/debts/');
 export const createDebt = (data) => api.post('/debts/', data);
 export const updateDebt = (id, data) => api.put(`/debts/${id}`, data);
+export const settleDebt = (data) => api.post(`/debts/settle`, data);
 export const payDebt = (id, data) => api.post(`/debts/${id}/pay`, data);
 export const deleteDebt = (id) => api.delete(`/debts/${id}`);
 export const splitBill = (data) => api.post('/debts/split', data);
