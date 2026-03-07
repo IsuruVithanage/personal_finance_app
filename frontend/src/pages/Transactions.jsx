@@ -16,8 +16,7 @@ const Transactions = () => {
     const initialTxState = {
         amount: '', type: 'expense', date: new Date().toISOString().split('T')[0],
         description: '', account_id: '', category_id: '', to_account_id: '',
-        is_split: false, splits: [{ friend_name: '', amount: '' }],
-        paid_by_friend: false, friend_name: ''
+        is_split: false, splits: [{ account_id: '', amount: '' }]
     };
     const [newTx, setNewTx] = useState(initialTxState);
 
@@ -53,7 +52,7 @@ const Transactions = () => {
     };
 
     const handleAddSplit = () => {
-        setNewTx(prev => ({ ...prev, splits: [...prev.splits, { friend_name: '', amount: '' }] }));
+        setNewTx(prev => ({ ...prev, splits: [...prev.splits, { account_id: '', amount: '' }] }));
     };
 
     const handleRemoveSplit = (index) => {
@@ -79,15 +78,9 @@ const Transactions = () => {
             if (!payload.category_id) delete payload.category_id;
 
             if (payload.is_split) {
-                payload.splits = payload.splits.map(s => ({ ...s, amount: parseFloat(s.amount) || 0 }));
+                payload.splits = payload.splits.map(s => ({ account_id: s.account_id, amount: parseFloat(s.amount) || 0 }));
             } else {
                 delete payload.splits;
-            }
-
-            if (!payload.paid_by_friend) {
-                delete payload.friend_name;
-            } else {
-                payload.account_id = null; // Backend handles default or bypass
             }
 
             if (editingTxId) {
@@ -117,8 +110,7 @@ const Transactions = () => {
             account_id: tx.account_id,
             category_id: tx.category_id || '',
             to_account_id: tx.to_account_id || '',
-            is_split: false, splits: [{ friend_name: '', amount: '' }],
-            paid_by_friend: false, friend_name: ''
+            is_split: false, splits: [{ account_id: '', amount: '' }]
         });
         setShowModal(true);
     };
@@ -286,17 +278,22 @@ const Transactions = () => {
                                 </div>
                             )}
 
-                            {(!newTx.paid_by_friend || newTx.type !== 'expense') && (
-                                <div className="form-group">
-                                    <label className="form-label">{newTx.type === 'transfer' ? 'From Account' : 'Account'}</label>
-                                    <select className="form-control" required value={newTx.account_id} onChange={e => setNewTx({ ...newTx, account_id: e.target.value })}>
-                                        <option value="">Select Account...</option>
-                                        {accounts.map(acc => (
+                            <div className="form-group">
+                                <label className="form-label">{newTx.type === 'transfer' ? 'From Account' : 'Account (Who paid?)'}</label>
+                                <select className="form-control" required value={newTx.account_id} onChange={e => setNewTx({ ...newTx, account_id: e.target.value })}>
+                                    <option value="">Select Account...</option>
+                                    <optgroup label="My Accounts">
+                                        {accounts.filter(a => a.type !== 'friend').map(acc => (
                                             <option key={acc._id} value={acc._id}>{acc.name} (Rs {acc.balance})</option>
                                         ))}
-                                    </select>
-                                </div>
-                            )}
+                                    </optgroup>
+                                    <optgroup label="Friends (If they paid for you)">
+                                        {accounts.filter(a => a.type === 'friend').map(acc => (
+                                            <option key={acc._id} value={acc._id}>{acc.name}</option>
+                                        ))}
+                                    </optgroup>
+                                </select>
+                            </div>
 
                             {newTx.type === 'transfer' && (
                                 <div className="form-group">
@@ -314,33 +311,24 @@ const Transactions = () => {
                                 <div style={{ marginTop: 'var(--spacing-md)', background: 'var(--glass-bg)', padding: 'var(--spacing-md)', borderRadius: 'var(--radius-md)' }}>
                                     <h3 style={{ fontSize: '1rem', marginBottom: 'var(--spacing-sm)' }}>Advanced Expense Options</h3>
 
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--spacing-sm)', cursor: 'pointer' }}>
-                                        <input type="checkbox" checked={newTx.paid_by_friend} onChange={e => setNewTx({ ...newTx, paid_by_friend: e.target.checked })} />
-                                        Paid by a friend (Do not deduct my account)
-                                    </label>
-                                    {newTx.paid_by_friend && (
-                                        <div className="form-group" style={{ marginLeft: '24px' }}>
-                                            <label className="form-label">Friend's Name</label>
-                                            <input type="text" className="form-control" placeholder="Who paid?"
-                                                value={newTx.friend_name} onChange={e => setNewTx({ ...newTx, friend_name: e.target.value })} required={newTx.paid_by_friend} />
-                                        </div>
-                                    )}
-
-                                    <div style={{ height: '1px', background: 'var(--border-color)', margin: 'var(--spacing-md) 0' }}></div>
-
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--spacing-sm)', marginTop: 'var(--spacing-md)', cursor: 'pointer' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--spacing-sm)', marginTop: 'var(--spacing-sm)', cursor: 'pointer' }}>
                                         <input type="checkbox" checked={newTx.is_split} onChange={e => setNewTx({ ...newTx, is_split: e.target.checked })} />
-                                        This is a split expense
+                                        This is a split expense (Friends owe you a portion)
                                     </label>
 
                                     {newTx.is_split && (
                                         <div style={{ marginLeft: '24px' }}>
                                             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-                                                Add friends and the custom amount they individually owe you.
+                                                Select friends and the custom amount they individually owe you.
                                             </p>
                                             {newTx.splits.map((split, i) => (
                                                 <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                                                    <input type="text" className="form-control" placeholder="Friend Name" value={split.friend_name} onChange={e => handleSplitChange(i, 'friend_name', e.target.value)} required={newTx.is_split} style={{ flex: 1 }} />
+                                                    <select className="form-control" value={split.account_id} onChange={e => handleSplitChange(i, 'account_id', e.target.value)} required={newTx.is_split} style={{ flex: 1 }}>
+                                                        <option value="">Select Friend...</option>
+                                                        {accounts.filter(a => a.type === 'friend').map(acc => (
+                                                            <option key={acc._id} value={acc._id}>{acc.name}</option>
+                                                        ))}
+                                                    </select>
                                                     <input type="number" step="0.01" className="form-control" placeholder="Rs" value={split.amount} onChange={e => handleSplitChange(i, 'amount', e.target.value)} required={newTx.is_split} style={{ width: '100px' }} />
                                                     {newTx.splits.length > 1 && (
                                                         <button type="button" className="btn-icon" style={{ color: 'var(--status-danger)' }} onClick={() => handleRemoveSplit(i)}>
@@ -352,6 +340,9 @@ const Transactions = () => {
                                             <button type="button" className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem', marginTop: '4px' }} onClick={handleAddSplit}>
                                                 + Add Friend to Split
                                             </button>
+                                            {accounts.filter(a => a.type === 'friend').length === 0 && (
+                                                <p style={{ color: 'var(--status-warning)', fontSize: '0.85rem', marginTop: '8px' }}>You haven't added any Friend Accounts yet! Go to the Accounts page to add them.</p>
+                                            )}
                                         </div>
                                     )}
                                 </div>

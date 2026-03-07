@@ -8,6 +8,7 @@ const Accounts = () => {
     const [accounts, setAccounts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+    const [activeTab, setActiveTab] = useState('mine');
     const [newAccount, setNewAccount] = useState({ name: '', type: 'bank', balance: 0 });
 
     const fetchAccounts = async () => {
@@ -53,6 +54,7 @@ const Accounts = () => {
             case 'bank': return <Building2 size={24} style={{ color: 'var(--brand-primary)' }} />;
             case 'cash': return <CreditCard size={24} style={{ color: 'var(--status-success)' }} />;
             case 'wallet': return <Wallet size={24} style={{ color: 'var(--status-warning)' }} />;
+            case 'friend': return <Wallet size={24} style={{ color: 'var(--brand-secondary)' }} />;
             case 'custom': return <Wallet size={24} style={{ color: 'var(--status-warning)' }} />;
             default: return <Wallet size={24} style={{ color: 'var(--status-warning)' }} />;
         }
@@ -72,8 +74,23 @@ const Accounts = () => {
                 </button>
             </div>
 
+            <div className="tabs" style={{ display: 'flex', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-lg)' }}>
+                <button
+                    className={`btn ${activeTab === 'mine' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setActiveTab('mine')}
+                >
+                    My Accounts
+                </button>
+                <button
+                    className={`btn ${activeTab === 'others' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setActiveTab('others')}
+                >
+                    Other Accounts (Friends)
+                </button>
+            </div>
+
             <div className="grid-3">
-                {accounts.map(account => (
+                {accounts.filter(a => activeTab === 'mine' ? a.type !== 'friend' : a.type === 'friend').map(account => (
                     <div key={account._id} className="glass-panel interactive" onClick={() => navigate(`/accounts/${account._id}`)} style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                             <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
@@ -101,12 +118,12 @@ const Accounts = () => {
                         </div>
                     </div>
                 ))}
-                {accounts.length === 0 && (
+                {accounts.filter(a => activeTab === 'mine' ? a.type !== 'friend' : a.type === 'friend').length === 0 && (
                     <div className="glass-panel" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 'var(--spacing-xl)' }}>
                         <Wallet size={48} style={{ color: 'var(--text-tertiary)', marginBottom: 'var(--spacing-md)' }} />
-                        <h3>No accounts found</h3>
-                        <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--spacing-md)' }}>Start tracking your money by adding an account.</p>
-                        <button className="btn btn-primary" onClick={() => setShowModal(true)}>Add your first account</button>
+                        <h3>No accounts found here</h3>
+                        <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--spacing-md)' }}>There are no {activeTab === 'mine' ? 'personal accounts' : 'friend ledgers'} yet.</p>
+                        <button className="btn btn-primary" onClick={() => { setActiveTab(activeTab); setShowModal(true); }}>Add Account</button>
                     </div>
                 )}
             </div>
@@ -131,6 +148,7 @@ const Accounts = () => {
                                     <option value="bank">Bank Account</option>
                                     <option value="cash">Physical Cash</option>
                                     <option value="wallet">Digital Wallet</option>
+                                    <option value="friend">Friend / IOUs</option>
                                     <option value="custom">Custom</option>
                                 </select>
                             </div>
